@@ -113,7 +113,7 @@
    }
    
    .sidebar-container.oculto {
-     transform: translateX(-300px);
+     transform: translateX(0);
    }
    
    .informacion {
@@ -125,6 +125,12 @@
      background-color: rgba(57, 0, 0, 0.735);
      color: #fff;
      backdrop-filter: blur(5px);
+     transition: transform 0.3s ease;
+     transform: translateX(0);
+   }
+   
+   .sidebar-container.oculto .informacion {
+     transform: translateX(-100%);
    }
    
    .contenido-informacion {
@@ -148,6 +154,12 @@
      display: flex;
      align-items: center;
      justify-content: center;
+     transition: left 0.3s ease;
+   }
+   
+   .sidebar-container.oculto .toggle-btn {
+     left: 0;
+     border-radius: 0 4px 4px 0;
    }
    
    .hamburger {

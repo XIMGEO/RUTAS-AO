@@ -20,7 +20,12 @@
       .main-container { display: flex; }
       .map-container { flex: 1; }
       #map { width: 100%; height: calc(100vh - 80px); }
-      .control-capas-panel .form-check { margin-bottom: .5rem; }
+      .control-capas-panel .form-check { margin-bottom: .75rem; }
+      .legend-block { margin: .25rem 0 0 1.75rem; display: flex; flex-direction: column; gap: .25rem; }
+      .legend-row { display: flex; align-items: center; gap: .4rem; font-size: .8rem; color: #444; }
+      .legend-swatch { width: 14px; height: 14px; border-radius: 2px; display: inline-block; border: 1px solid rgba(0,0,0,.2); }
+      .sidebar-help-text { font-size: .95rem; line-height: 1.35; margin-bottom: .75rem; white-space: pre-line; }
+      .legend-swatch-red { background: #FF0000; }
       .sidebar-footer { margin-top: 20px; }
       #consultaMapasBtn { padding: 10px; background-color: #922B21; border: none; color: #fff; cursor: pointer; width: 100%; border-radius: 4px; }
       #consultaMapasBtn:hover { background-color: #7a1f1a; }
@@ -156,24 +161,54 @@
         <button class="toggle-btn" id="toggleBtn"><span class="hamburger"></span></button>
         <div class="informacion" id="sidebar">
           <div class="contenido-informacion">
-            <h6 class="mb-2">Capas de Rutas</h6>
+            <h6 class="mb-2 sidebar-help-text">Da clic en una ruta para conocer sus estadísticas, o en un conflicto vial
+para ver sus detalles.</h6>
             <div id="controlCapasContainer" class="control-capas-panel">
               <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="chkMatutino">
                 <label class="form-check-label" for="chkMatutino">Rutas Matutino</label>
+                <div class="legend-block">
+                  <div class="legend-row">
+                    <span class="legend-swatch" style="background:#FFD700"></span>
+                    <span>Ruta monitoreada</span>
+                  </div>
+                  <div class="legend-row">
+                    <span class="legend-swatch legend-swatch-red"></span>
+                    <span>Conflicto vial</span>
+                  </div>
+                </div>
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="chkTarde">
                 <label class="form-check-label" for="chkTarde">Rutas Tarde</label>
+                <div class="legend-block">
+                  <div class="legend-row">
+                    <span class="legend-swatch" style="background:#FF9800"></span>
+                    <span>Ruta monitoreada</span>
+                  </div>
+                  <div class="legend-row">
+                    <span class="legend-swatch legend-swatch-red"></span>
+                    <span>Conflicto vial</span>
+                  </div>
+                </div>
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="chkVespertino">
                 <label class="form-check-label" for="chkVespertino">Rutas Vespertino</label>
+                <div class="legend-block">
+                  <div class="legend-row">
+                    <span class="legend-swatch" style="background:#3F51B5"></span>
+                    <span>Ruta monitoreada</span>
+                  </div>
+                  <div class="legend-row">
+                    <span class="legend-swatch legend-swatch-red"></span>
+                    <span>Conflicto vial</span>
+                  </div>
+                </div>
               </div>
             </div>
             <hr />
             <div class="d-grid gap-2">
-              <small>Selecciona un turno para ver las rutas que se monitorean, haz clic en una ruta para ver sus estadisticas.</small>
               <button id="btnLimpiar" class="btn btn-sm btn-outline-secondary">Limpiar selección</button>
             </div>
           </div>
@@ -189,6 +224,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-gauge@4.4.0/dist/chartjs-chart-gauge.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
 
     <script>
       try {

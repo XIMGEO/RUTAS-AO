@@ -2,11 +2,14 @@
 const sidebarContainer = document.getElementById('sidebarContainer');
 const toggleBtn = document.getElementById('toggleBtn');
 
-toggleBtn.addEventListener('click', () => {
-  // Alterna la clase 'oculto' en el contenedor lateral
-  sidebarContainer.classList.toggle('oculto');
-  setTimeout(() => {
-  }, 300);
-});
+if (sidebarContainer && toggleBtn) {
+  toggleBtn.addEventListener('click', () => {
+    sidebarContainer.classList.toggle('oculto');
+    const expanded = !sidebarContainer.classList.contains('oculto');
+    toggleBtn.setAttribute('aria-expanded', String(expanded));
+  });
+
+  toggleBtn.setAttribute('aria-expanded', 'true');
+}
 
 
