@@ -225,7 +225,12 @@ para ver sus detalles.</h6>
 
     <script>
       try {
-      const map = L.map("map").setView([19.359, -99.213], 12);
+      const map = L.map("map", {
+        tap: true,
+        tapTolerance: 15,
+        zoomControl: true,
+        attributionControl: true
+      }).setView([19.359, -99.213], 12);
       // also expose globally so external modules can access it if needed (e.g. Capa_pol.js)
       window.map = map;
       L.tileLayer(
@@ -257,12 +262,13 @@ para ver sus detalles.</h6>
           .then(gj => {
             rutasGeoJSON[turno] = gj;
             capasRutas[turno] = L.geoJSON(gj, {
+              interactive: true,
               style: { color: coloresTurno[turno], weight: 5 },
               onEachFeature: (feat, layer) => {
                 const rutaId = feat.properties?.IDENTIFICA ?? "s/d";
                 const od = feat.properties?.["O/D"] ?? "";
                 layer.bindPopup(`<strong>Ruta:</strong> ${od}<br><em>Turno: ${turno}</em>`);
-                layer.on("click", () => {
+                layer.on("click tap", () => {
                   console.log("Click en ruta:", rutaId, "turno:", turno);
                   dibujarGraficaRuta(rutaId, turno, `RUTA ${rutaId}`, od);
                 });
@@ -276,6 +282,7 @@ para ver sus detalles.</h6>
           .then(gj => {
             nodosGeoJSON[turno] = gj;
             capasNodos[turno] = L.geoJSON(gj, {
+              interactive: true,
               style: { color: "#FF0000", weight: 6, fill: false },
               onEachFeature: (feat, layer) => {
                 const motivoPri = feat.properties?.Motivo_Pri ?? "s/d";
@@ -283,6 +290,9 @@ para ver sus detalles.</h6>
                 const amplitud = feat.properties?.Amplitud ?? "s/d";
                 const popup = `<strong>Motivo Principal:</strong> ${motivoPri}<br><strong>Turno:</strong> ${turnoNodo}<br><strong>Amplitud:</strong> ${amplitud}`;
                 layer.bindPopup(popup);
+                layer.on("click tap", () => {
+                  map.openPopup(popup);
+                });
               }
             });
           })
