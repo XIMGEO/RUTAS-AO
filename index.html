@@ -46,6 +46,19 @@
       .leaflet-tooltip-right::before {
         border-right-color: white !important;
       }
+      .mobile-close-btn {
+        font-size: 1.05rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 0.35rem;
+        margin-left: 0.5rem;
+      }
+      /* Asegurar que el modal se muestre por encima de la navbar fija */
+      .modal {
+        z-index: 11100 !important;
+      }
+      .modal-backdrop {
+        z-index: 11000 !important;
+      }
     </style>
     <style>
       #estadisticasChart, #estadisticasChartMensual {
@@ -122,7 +135,10 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Estadísticas</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <button id="estadisticasCloseBtnMobile" type="button" class="btn btn-outline-light d-block d-sm-none mobile-close-btn" data-bs-dismiss="modal" aria-label="Cerrar">
+              <i class="bi bi-x-lg"></i>
+            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
           </div>
           <div class="modal-body">
             <div id="estadisticasInfo" class="mb-2"></div>
