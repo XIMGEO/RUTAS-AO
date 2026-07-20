@@ -1,0 +1,16 @@
+{
+"type": "FeatureCollection",
+"name": "ESTACIONES_CABLEBUS_AO",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "Name": "OLIVAR DEL CONDE", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": null, "tessellate": -1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null }, "geometry": { "type": "Point", "coordinates": [ -99.212565982044595, 19.374946174224039, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "SANTA LUCIA", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": "clampToSeaFloor", "tessellate": -1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null }, "geometry": { "type": "Point", "coordinates": [ -99.222784696932422, 19.368589790344011, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "H DR. ENRIQUE CABRERA", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": null, "tessellate": -1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null }, "geometry": { "type": "Point", "coordinates": [ -99.223432032177797, 19.36146762598208, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "PUEBLO DE TETELPAN", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": null, "tessellate": -1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null }, "geometry": { "type": "Point", "coordinates": [ -99.225609890195486, 19.345685844396321, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "GLACIAR", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": null, "tessellate": -1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null }, "geometry": { "type": "Point", "coordinates": [ -99.234067527489302, 19.334441822048209, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "EL TANQUE", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": null, "tessellate": -1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null }, "geometry": { "type": "Point", "coordinates": [ -99.246905598022195, 19.324890539641451, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "LOMAS DE LA ERA", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": null, "tessellate": -1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null }, "geometry": { "type": "Point", "coordinates": [ -99.259034662247345, 19.325461140153731, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "SAN BARTOLO AMEYALCO", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": null, "tessellate": -1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null }, "geometry": { "type": "Point", "coordinates": [ -99.270080505149124, 19.3272254622301, 0.0 ] } },
+{ "type": "Feature", "properties": { "Name": "MIXCOAC", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": null, "tessellate": -1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null }, "geometry": { "type": "Point", "coordinates": [ -99.188550553237746, 19.375623324816491, 0.0 ] } }
+]
+}

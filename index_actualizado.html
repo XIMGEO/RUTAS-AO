@@ -1,0 +1,843 @@
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Geoportal AO</title>
+
+    <!-- Favicon y fuentes -->
+    <link rel="icon" type="image/png" href="img/favicon/favicon-32x32.png" sizes="32x32" />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+
+    <!-- Leaflet, Bootstrap, Icons y tu CSS vino -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css"/>
+    <link rel="stylesheet" href="style.css"/>
+
+    <style>
+      .main-container { display: flex; }
+      .map-container { flex: 1; }
+      #map { width: 100%; height: calc(100vh - 80px); }
+      .control-capas-panel .form-check { margin-bottom: .5rem; }
+      .sidebar-footer { margin-top: 20px; }
+      #consultaMapasBtn { padding: 10px; background-color: #922B21; border: none; color: #fff; cursor: pointer; width: 100%; border-radius: 4px; }
+      #consultaMapasBtn:hover { background-color: #7a1f1a; }
+      .ruta-pill { display:inline-block; padding:2px 8px; border-radius:12px; font-size:.8rem; background:#f1f1f1; margin-left:6px; }
+      .leaflet-tooltip {
+        background: white !important;
+        color: #000 !important;
+        border: none !important;
+        padding: 4px 8px !important;
+        border-radius: 3px !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25) !important;
+        font-weight: 600 !important;
+        font-size: 12px !important;
+      }
+      .leaflet-tooltip-left::before {
+        border-left-color: white !important;
+      }
+      .leaflet-tooltip-right::before {
+        border-right-color: white !important;
+      }
+    </style>
+    <style>
+      #estadisticasChart, #estadisticasChartMensual {
+         max-height: 400px;
+         height: 400px;
+      }
+      .btn-vista { background-color: #922B21; border-color: #922B21; color: #fff; }
+      .btn-vista:hover { background-color: #7a1f1a; border-color: #7a1f1a; }
+      .btn-vista:focus { background-color: #922B21; border-color: #922B21; color: #fff; box-shadow: 0 0 0 0.25rem rgba(146, 43, 33, 0.5); }
+      .btn-vista.active { background-color: #922B21; border-color: #922B21; }
+      .btn-vista-outline { color: #922B21; border-color: #922B21; }
+      .btn-vista-outline:hover { background-color: #922B21; border-color: #922B21; color: #fff; }
+      .btn-vista-outline:focus { color: #922B21; border-color: #922B21; box-shadow: 0 0 0 0.25rem rgba(146, 43, 33, 0.25); }
+
+      /* Tabla mensual estilos: encabezados y etiquetas en vino, datos con fondo arena y texto negro */
+      .table-responsive table { border-collapse: collapse; }
+      .table-responsive table, .table-responsive table th, .table-responsive table td { border: 1px solid #000 !important; }
+      .table-responsive table th.tabla-mes-header {
+        background-color: #922B21 !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        font-size: 0.7rem !important;
+        padding: 4px 3px !important;
+        text-align: center !important;
+        vertical-align: middle !important;
+      }
+      .table-responsive table td.tabla-row-label {
+        background-color: #922B21 !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        font-size: 0.7rem !important;
+        padding: 4px 3px !important;
+        text-align: center !important;
+        vertical-align: middle !important;
+      }
+      .table-responsive table td.tabla-row-label strong {
+        font-weight: 600 !important;
+        font-size: inherit !important;
+        color: inherit !important;
+      }
+      .table-responsive table td.tabla-data {
+        background-color: #D4BA8A !important;
+        color: #000000 !important;
+        font-weight: 600 !important;
+        font-size: 0.7rem !important;
+        padding: 4px 3px !important;
+        text-align: center !important;
+        vertical-align: middle !important;
+      }
+      /* Asegurar que el primer column header tenga el estilo correcto si se renderiza como <th> */
+      .table-responsive table thead th.tabla-row-label {
+        background-color: #922B21 !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        font-size: 0.7rem !important;
+        padding: 4px 3px !important;
+      }
+      .table-responsive table th, .table-responsive table td { text-align: center; vertical-align: middle; font-size: 0.7rem !important; padding: 4px 3px !important; }
+    </style>
+  </head>
+
+  <body>
+    <nav class="navbar navbar-expand-lg">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">
+          <img src="img/logo/logo.png" class="logo img-fluid" alt="logo">
+          <span class="navbar-text">Monitoreo de vialidades principales de la Alcaldía Álvaro Obregón</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="modal fade" id="estadisticasModal" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Estadísticas</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div id="estadisticasInfo" class="mb-2"></div>
+            <div id="tablaMensual" class="mb-3"></div>
+            <div class="mb-2 text-center">
+              <button id="btnVistasDiaria" class="btn btn-sm btn-vista active" data-vista="diaria">Vista Diaria</button>
+              <button id="btnVistaMensual" class="btn btn-sm btn-vista-outline" data-vista="mensual">Vista Mensual</button>
+            </div>
+            <canvas id="estadisticasChart"></canvas>
+            <canvas id="estadisticasChartMensual" style="display:none;"></canvas>
+            <div id="velocidadesPromedio" class="mt-3 text-center">
+              <h6>Velocidad promedio</h6>
+              <div class="d-flex justify-content-center gap-4">
+                <div>
+                  <canvas id="velTransporte" width="150" height="150"></canvas>
+                  <div>Ruta Transporte</div>
+                </div>
+                <div>
+                  <canvas id="velVehiculo" width="150" height="150"></canvas>
+                  <div>Ruta Vehículo</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          
+          <div class="modal-footer">
+            <small class="text-muted">Fuente: archivo interno de monitoreo de rutas</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-container">
+      <div class="sidebar-container" id="sidebarContainer">
+        <button class="toggle-btn" id="toggleBtn"><span class="hamburger"></span></button>
+        <div class="informacion" id="sidebar">
+          <div class="contenido-informacion">
+            <h6 class="mb-2">Capas de Rutas</h6>
+            <div id="controlCapasContainer" class="control-capas-panel">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="chkMatutino">
+                <label class="form-check-label" for="chkMatutino">Rutas Matutino</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="chkTarde">
+                <label class="form-check-label" for="chkTarde">Rutas Tarde</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="chkVespertino">
+                <label class="form-check-label" for="chkVespertino">Rutas Vespertino</label>
+              </div>
+            </div>
+            <hr />
+            <h6 class="mb-2">Capas Adicionales</h6>
+            <div id="controlCapasAdicionalesContainer" class="control-capas-panel">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="chkCablebus">
+                <label class="form-check-label" for="chkCablebus">Línea 5 Cablebus</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="toggleIDSCheckbox" disabled>
+                <label class="form-check-label" for="toggleIDSCheckbox">IDS AO</label>
+              </div>
+            </div>
+            <hr />
+            <div class="d-grid gap-2">
+              <small>Selecciona un turno para ver las rutas que se monitorean, haz clic en una ruta para ver sus estadisticas.</small>
+              <button id="btnLimpiar" class="btn btn-sm btn-outline-secondary">Limpiar selección</button>
+            </div>
+          </div>
+          <div class="sidebar-footer">
+            <button id="consultaMapasBtn">Consulta la Mapoteca digital</button>
+          </div>
+        </div>
+      </div>
+      <div class="map-container"><div id="map"></div></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-gauge@4.4.0/dist/chartjs-chart-gauge.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+      try {
+      const map = L.map("map").setView([19.359, -99.213], 12);
+      // also expose globally so external modules can access it if needed (e.g. Capa_pol.js)
+      window.map = map;
+      L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        {
+          attribution: "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye"
+        }
+      ).addTo(map);
+
+      // ====== LÍMITE AO ======
+      let limiteLayer = null;
+      fetch("data/limite_alcaldia.geojson")
+        .then(r => r.json())
+        .then(gj => {
+          limiteLayer = L.geoJSON(gj, { style: { color: "#000000", weight: 4, fill: false } }).addTo(map);
+          try { map.fitBounds(limiteLayer.getBounds(), { padding: [20,20] }); } catch(e) {}
+        });
+
+      const coloresTurno = { matutino: "#FFD700", tarde: "#FF9800", vespertino: "#3F51B5" };
+      const capasRutas = { matutino: null, tarde: null, vespertino: null };
+      const capasNodos = { matutino: null, tarde: null, vespertino: null };
+      let capaCablebus = null;
+      let capaEstacionesCablebus = null;
+      let capaIDS = null;
+      const chkIDS = document.getElementById("toggleIDSCheckbox");
+      let rutasGeoJSON = { matutino: null, tarde: null, vespertino: null };
+      let nodosGeoJSON = { matutino: null, tarde: null, vespertino: null };
+      const nombresNodos = { matutino: "NODOS MATUTINO", tarde: "NODOS TARDE", vespertino: "NODOS VESPERTINO" }; 
+
+      // Cargar Cablebus L5
+      fetch("data/Trazo_Cablebus L5_AO.geojson")
+        .then(r => r.json())
+        .then(gj => {
+          capaCablebus = L.geoJSON(gj, {
+            style: { color: "#00FFFF", weight: 4, fill: false }
+          });
+        })
+        .catch(e => console.warn("No se pudo cargar Cablebus L5:", e));
+
+      // Cargar estaciones del Cablebus
+      fetch("data/ESTACIONES_CABLEBUS_AO.geojson")
+        .then(r => r.json())
+        .then(gj => {
+          const iconoCablebus = L.icon({
+            iconUrl: "img/logo/Cablebus.jpg",
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -10]
+          });
+          capaEstacionesCablebus = L.geoJSON(gj, {
+            pointToLayer: (feature, latlng) => {
+              return L.marker(latlng, { icon: iconoCablebus });
+            },
+            onEachFeature: (feat, layer) => {
+              const nombre = feat.properties?.Name ?? "Estación";
+              layer.bindTooltip(nombre, { permanent: true, direction: 'right', className: 'leaflet-tooltip' });
+            }
+          });
+        })
+        .catch(e => console.warn("No se pudo cargar estaciones del Cablebus:", e));
+
+      // Cargar IDS AO y colorear según e_idsm
+      if (chkIDS) {
+          chkIDS.disabled = true;
+      }
+      fetch("data/IDS AO.geojson")
+        .then(r => r.json())
+        .then(gj => {
+          const coloresIDS = {
+            "Muy alto": "#6B0000",
+            "Alto": "#A80000",
+            "Medio": "#D43A3A",
+            "Bajo": "#F07A7A",
+            "Muy bajo": "#FACACA",
+            "Sin información": "#9E9E9E"
+          };
+          capaIDS = L.geoJSON(gj, {
+            style: feature => {
+              let cat = (feature.properties?.e_idsm || "Sin información").toString().trim();
+              if (!cat) cat = "Sin información";
+              const color = coloresIDS[cat] || coloresIDS["Sin información"];
+              return {
+                color: color,
+                weight: cat === "Sin información" ? 1 : 2,
+                fillOpacity: cat === "Sin información" ? 0.35 : 0.6,
+                fillColor: color
+              };
+            },
+            onEachFeature: (feat, layer) => {
+              layer.bindPopup(`<strong>e_idsm:</strong> ${feat.properties?.e_idsm || ''}`);
+              layer.on("mouseover", () => layer.setStyle({ fillOpacity: 1, weight: 3 }));
+              layer.on("mouseout", () => layer.setStyle({ fillOpacity: 0.6, weight: 2 }));
+            }
+          });
+          if (chkIDS) {
+            chkIDS.disabled = false;
+            if (chkIDS.checked) capaIDS.addTo(map);
+            chkIDS.addEventListener("change", function(e) {
+              if (!capaIDS) return;
+              if (e.target.checked) capaIDS.addTo(map);
+              else if (map.hasLayer(capaIDS)) map.removeLayer(capaIDS);
+            });
+          } else {
+            capaIDS.addTo(map);
+          }
+        })
+        .catch(e => console.warn("No se pudo cargar IDS AO:", e));
+
+      ["matutino", "tarde", "vespertino"].forEach(turno => {
+        fetch(`data/rutas_${turno}.geojson`)
+          .then(r => r.json())
+          .then(gj => {
+            rutasGeoJSON[turno] = gj;
+            capasRutas[turno] = L.geoJSON(gj, {
+              style: { color: coloresTurno[turno], weight: 5 },
+              onEachFeature: (feat, layer) => {
+                const rutaId = feat.properties?.IDENTIFICA ?? "s/d";
+                const od = feat.properties?.["O/D"] ?? "";
+                layer.bindPopup(`<strong>Ruta:</strong> ${od}<br><em>Turno: ${turno}</em>`);
+                layer.on("click", () => {
+                  console.log("Click en ruta:", rutaId, "turno:", turno);
+                  dibujarGraficaRuta(rutaId, turno, `RUTA ${rutaId}`, od);
+                });
+              }
+            });
+          });
+        
+        // Cargar nodos para cada turno
+        fetch(`data/${nombresNodos[turno]}.geojson`)
+          .then(r => r.json())
+          .then(gj => {
+            nodosGeoJSON[turno] = gj;
+            capasNodos[turno] = L.geoJSON(gj, {
+              style: { color: "#FF0000", weight: 6, fill: false },
+              onEachFeature: (feat, layer) => {
+                const motivoPri = feat.properties?.Motivo_Pri ?? "s/d";
+                const turnoNodo = feat.properties?.Turno ?? "s/d";
+                const amplitud = feat.properties?.Amplitud ?? "s/d";
+                const popup = `<strong>Motivo Principal:</strong> ${motivoPri}<br><strong>Turno:</strong> ${turnoNodo}<br><strong>Amplitud:</strong> ${amplitud}`;
+                layer.bindPopup(popup);
+              }
+            });
+          })
+          .catch(e => console.warn(`No se pudo cargar nodos para ${turno}:`, e));
+      });
+
+      function toggleTurno(turno, on) {
+        const capa = capasRutas[turno];
+        const capaNodos = capasNodos[turno];
+        if (!capa) return;
+        if (on) {
+          capa.addTo(map);
+          if (capaNodos) capaNodos.addTo(map);
+        } else {
+          if (map.hasLayer(capa)) map.removeLayer(capa);
+          if (capaNodos && map.hasLayer(capaNodos)) map.removeLayer(capaNodos);
+        }
+      }
+
+      function toggleNodos(turno, on) {
+        const capaNodos = capasNodos[turno];
+        if (!capaNodos) return;
+        if (on) {
+          capaNodos.addTo(map);
+        } else {
+          if (map.hasLayer(capaNodos)) map.removeLayer(capaNodos);
+        }
+      }
+
+      function toggleCablebus(on) {
+        if (!capaCablebus && !capaEstacionesCablebus) return;
+        if (on) {
+          if (capaCablebus) capaCablebus.addTo(map);
+          if (capaEstacionesCablebus) capaEstacionesCablebus.addTo(map);
+        } else {
+          if (capaCablebus && map.hasLayer(capaCablebus)) map.removeLayer(capaCablebus);
+          if (capaEstacionesCablebus && map.hasLayer(capaEstacionesCablebus)) map.removeLayer(capaEstacionesCablebus);
+        }
+      }
+
+      document.getElementById("chkMatutino").addEventListener("change", e => toggleTurno("matutino", e.target.checked));
+      document.getElementById("chkTarde").addEventListener("change", e => toggleTurno("tarde", e.target.checked));
+      document.getElementById("chkVespertino").addEventListener("change", e => toggleTurno("vespertino", e.target.checked));
+      
+      const chkCablebus = document.getElementById("chkCablebus");
+      if (chkCablebus) chkCablebus.addEventListener("change", e => toggleCablebus(e.target.checked));
+      
+      document.getElementById("btnLimpiar").addEventListener("click", () => {
+        ["chkMatutino","chkTarde","chkVespertino"].forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
+        if (chkCablebus) chkCablebus.checked = false;
+        ["matutino","tarde","vespertino"].forEach(t => {
+          const capa = capasRutas[t];
+          const capaNodos = capasNodos[t];
+          if (capa && map.hasLayer(capa)) map.removeLayer(capa);
+          if (capaNodos && map.hasLayer(capaNodos)) map.removeLayer(capaNodos);
+        });
+        if (capaCablebus && map.hasLayer(capaCablebus)) map.removeLayer(capaCablebus);
+        if (capaEstacionesCablebus && map.hasLayer(capaEstacionesCablebus)) map.removeLayer(capaEstacionesCablebus);
+        if (capaIDS && map.hasLayer(capaIDS)) map.removeLayer(capaIDS);
+        if (chkIDS) chkIDS.checked = false;
+      });
+
+      let chartRef = null;
+
+      // Limpiar y destruir gráficos cuando se cierre el modal para permitir abrirlo varias veces
+      (function setupModalCleanup(){
+        const modalEl = document.getElementById('estadisticasModal');
+        if (!modalEl) return;
+        modalEl.addEventListener('hidden.bs.modal', function () {
+          try {
+            if (chartRef) { chartRef.destroy(); chartRef = null; }
+            if (window.chartRefMensual) { window.chartRefMensual.destroy(); window.chartRefMensual = null; }
+            if (window.chartTransporte) { window.chartTransporte.destroy(); window.chartTransporte = null; }
+            if (window.chartVehiculo) { window.chartVehiculo.destroy(); window.chartVehiculo = null; }
+
+            // Limpiar canvases
+            const cMain = document.getElementById('estadisticasChart');
+            const cMensual = document.getElementById('estadisticasChartMensual');
+            if (cMain && cMain.getContext) {
+              const ctx = cMain.getContext('2d');
+              ctx.clearRect(0, 0, cMain.width, cMain.height);
+            }
+            if (cMensual && cMensual.getContext) {
+              const ctx = cMensual.getContext('2d');
+              ctx.clearRect(0, 0, cMensual.width, cMensual.height);
+            }
+            ['velTransporte','velVehiculo'].forEach(id => {
+              const c = document.getElementById(id);
+              if (c && c.getContext) {
+                const ctx = c.getContext('2d');
+                ctx.clearRect(0,0,c.width,c.height);
+              }
+            });
+          } catch (e) { console.error('Error cleaning charts on modal hide', e); }
+        });
+      })();
+
+      async function cargarTiempos() {
+        try {
+          const res = await fetch("data/tiempos.json");
+          if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
+          const data = await res.json();
+          console.log("Datos cargados (estructura):", Object.keys(data));
+          
+          // El JSON viene con estructura { Matutino: [...], Tarde: [...], Vespertino: [...] }
+          // Combinar todos los arrays en uno solo
+          let allData = [];
+          for (const turnoKey in data) {
+            if (Array.isArray(data[turnoKey])) {
+              allData = allData.concat(data[turnoKey]);
+            }
+          }
+          
+          console.log("Total de registros combinados:", allData.length);
+          console.log("Primeros 3 registros:", allData.slice(0, 3));
+          
+          return allData;
+        } catch (error) {
+          console.error("Error en cargarTiempos:", error);
+          throw error;
+        }
+      }
+
+      function obtenerDistancia(rutaId, turno) {
+        const geoJson = rutasGeoJSON[turno];
+        if (!geoJson) return 0;
+        const feature = geoJson.features.find(f => 
+          String(f.properties.IDENTIFICA).trim().toLowerCase() === String(rutaId).trim().toLowerCase()
+        );
+        return feature ? Number(feature.properties.Distancia) || 0 : 0;
+      }
+
+      async function dibujarGraficaRuta(rutaId, turno, titulo = "", subtitulo = "") {
+        try {
+          console.log("Iniciando dibujarGraficaRuta para ruta:", rutaId, "turno:", turno);
+          const data = await cargarTiempos();
+          console.log("Datos de tiempos cargados:", data.length, "registros");
+          
+          // Log de los primeros registros para ver la estructura
+          console.log("Primeros 3 registros:", data.slice(0, 3));
+          
+          // Obtener todos los RUTAs_ID únicos
+          const rutasUnicas = [...new Set(data.map(d => String(d.RUTAS_ID).trim().toLowerCase()))];
+          const turnosUnicos = [...new Set(data.map(d => String(d.Turno).trim().toLowerCase()))];
+          console.log("RUTAs_ID únicos en datos:", rutasUnicas.slice(0, 10));
+          console.log("Turnos únicos en datos:", turnosUnicos);
+          console.log("Buscando RUTAS_ID:", String(rutaId).trim().toLowerCase());
+          console.log("Buscando Turno:", String(turno).trim().toLowerCase());
+
+          const filtrado = data.filter(d =>
+            String(d["RUTAS ID"]).trim().toLowerCase() === String(rutaId).trim().toLowerCase() &&
+            String(d.Turno).trim().toLowerCase() === String(turno).trim().toLowerCase()
+          );
+          console.log("Registros filtrados:", filtrado.length);
+            
+          if (filtrado.length === 0) {
+            alert("No hay datos disponibles para esta ruta y turno.");
+            return;
+          }
+     
+        const origenDestino = filtrado[0]["Origen / Destino"] || "";
+
+        const tiemposPorTransporte = {};
+        filtrado.forEach(d => {
+          const fecha = d.Fecha;
+          const tipo = d["TIPO TRANSPORTE"];
+          const tiempo = Number(d.Tiempo);
+          if (!tiemposPorTransporte[tipo]) tiemposPorTransporte[tipo] = {};
+          tiemposPorTransporte[tipo][fecha] = tiempo;
+        });
+
+        // Calcular promedios
+        const promedios = {};
+        for (const tipo in tiemposPorTransporte) {
+          const tiempos = Object.values(tiemposPorTransporte[tipo]);
+          const suma = tiempos.reduce((acc, val) => acc + val, 0);
+          const promedio = suma / tiempos.length;
+          promedios[tipo] = promedio.toFixed(2);
+        }
+        
+        // Obtener distancia del GeoJSON
+        const distanciaKm = obtenerDistancia(rutaId, turno);
+        
+        // Calcular velocidades en km/h basadas en los tiempos promedios
+        // Velocidad = Distancia / Tiempo (en horas)
+        const velocidades = {};
+        for (const tipo in promedios) {
+          const tiempoMinutos = Number(promedios[tipo]);
+          const tiempoHoras = tiempoMinutos / 60;
+          velocidades[tipo] = tiempoHoras > 0 ? (distanciaKm / tiempoHoras).toFixed(1) : 0;
+        }
+
+
+        const fechasSet = new Set();
+        Object.values(tiemposPorTransporte).forEach(obj => {
+          Object.keys(obj).forEach(f => fechasSet.add(f));
+        });
+        const fechas = Array.from(fechasSet).sort();
+        const coloresPorTransporte = {
+          "Ruta Transporte": "#4CAF50",  // Azul
+          "Ruta Vehiculo ": "#616161"     // Naranja
+        };
+        const datasets = Object.keys(tiemposPorTransporte).map(tipo => {
+          return {
+            label: tipo,
+            data: fechas.map(f => tiemposPorTransporte[tipo][f] ?? null),
+            borderColor: coloresPorTransporte[tipo] || "#000",
+            backgroundColor: coloresPorTransporte[tipo] || "#000",
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            tension: 0.25
+          };
+        });
+
+        // Calcular promedios mensuales
+        const tiemposPorMes = {};
+        const mesesMap = new Map(); // Guardar fecha para ordenar cronológicamente
+        filtrado.forEach(d => {
+          const fecha = new Date(d.Fecha);
+          const mesNum = fecha.getMonth();
+          const año = fecha.getFullYear();
+          const mesLabel = fecha.toLocaleString('es-ES', { year: 'numeric', month: 'short' });
+          const mesKey = `${año}-${String(mesNum).padStart(2, '0')}`;
+          
+          const tipo = d["TIPO TRANSPORTE"];
+          const tiempo = Number(d.Tiempo);
+          if (!tiemposPorMes[tipo]) tiemposPorMes[tipo] = {};
+          if (!tiemposPorMes[tipo][mesKey]) tiemposPorMes[tipo][mesKey] = [];
+          tiemposPorMes[tipo][mesKey].push(tiempo);
+          
+          mesesMap.set(mesKey, mesLabel);
+        });
+
+        // Calcular promedios de cada mes y ordenar cronológicamente
+        const mesesSet = new Set();
+        Object.values(tiemposPorMes).forEach(obj => {
+          Object.keys(obj).forEach(m => mesesSet.add(m));
+        });
+        const mesesKeys = Array.from(mesesSet).sort();
+        const meses = mesesKeys.map(mesKey => mesesMap.get(mesKey));
+        
+        const datasetsMensual = Object.keys(tiemposPorMes).map(tipo => {
+          return {
+            label: tipo,
+            data: mesesKeys.map(mesKey => {
+              const tiempos = tiemposPorMes[tipo][mesKey] || [];
+              return tiempos.length > 0 ? (tiempos.reduce((a, b) => a + b, 0) / tiempos.length).toFixed(2) : null;
+            }),
+            borderColor: coloresPorTransporte[tipo] || "#000",
+            backgroundColor: coloresPorTransporte[tipo] || "#000",
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            tension: 0.25
+          };
+        });
+
+        const info = document.getElementById("estadisticasInfo");
+        info.innerHTML = `
+          <div><strong>Ruta:</strong> ${origenDestino ? `<span class="ruta-pill">${origenDestino}</span>` : ""}</div>
+          <div><strong>Turno:</strong> ${turno}</div>
+          <div><strong>Promedios:</strong></div>
+          <ul>
+            ${Object.entries(promedios).map(([tipo, valor]) => `<li>${tipo}: ${valor} min</li>`).join("")}
+          </ul>
+        `;
+
+        // Construir tabla mensual SOLO para el turno seleccionado
+        (function renderTablaMensual(){
+          const turnoSeleccionado = String(turno).trim().toLowerCase();
+          const filtradoTurno = data.filter(d =>
+            String(d["RUTAS ID"]).trim().toLowerCase() === String(rutaId).trim().toLowerCase() &&
+            String(d.Turno).trim().toLowerCase() === turnoSeleccionado
+          );
+
+          const tablaMes = {}; // tablaMes[mesKey][tipo] = [tiempos]
+          const mesesMapAll = new Map();
+
+          filtradoTurno.forEach(d => {
+            const fecha = new Date(d.Fecha);
+            const mesNum = fecha.getMonth();
+            const año = fecha.getFullYear();
+            const mesKey = `${año}-${String(mesNum).padStart(2, '0')}`;
+            const mesLabel = fecha.toLocaleString('es-ES', { year: 'numeric', month: 'short' });
+            const tipo = String(d["TIPO TRANSPORTE"]).trim();
+            const tiempo = Number(d.Tiempo);
+
+            if (!tablaMes[mesKey]) tablaMes[mesKey] = {};
+            if (!tablaMes[mesKey][tipo]) tablaMes[mesKey][tipo] = [];
+            tablaMes[mesKey][tipo].push(tiempo);
+            mesesMapAll.set(mesKey, mesLabel);
+          });
+
+          const mesesKeysAll = Array.from(mesesMapAll.keys()).sort();
+          const mesesLabels = mesesKeysAll.map(k => mesesMapAll.get(k));
+
+          // Construir HTML de la tabla: meses como columnas, tipos como filas
+          let html = '';
+          if (mesesKeysAll.length === 0) {
+            html = '<div class="text-muted">No hay datos mensuales para este turno en esta ruta.</div>';
+          } else {
+            html = '<div class="table-responsive"><table class="table table-sm table-striped"><thead><tr><th class="tabla-row-label">Tipo / Mes</th>';
+            mesesLabels.forEach(mLab => { html += `<th class="tabla-mes-header">${mLab.charAt(0).toUpperCase() + mLab.slice(1)}</th>`; });
+            html += '</tr></thead><tbody>';
+
+            const tipos = ['Ruta Transporte','Ruta Vehiculo'];
+            tipos.forEach(tipoName => {
+              html += `<tr><td class="tabla-row-label"><strong>${tipoName}</strong></td>`;
+              mesesKeysAll.forEach(mesKey => {
+                const arr = tablaMes[mesKey] && tablaMes[mesKey][tipoName] ? tablaMes[mesKey][tipoName] : [];
+                const avg = arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2) : '-';
+                html += `<td class="tabla-data">${avg}</td>`;
+              });
+              html += `</tr>`;
+            });
+
+            html += '</tbody></table></div>';
+          }
+
+          const cont = document.getElementById('tablaMensual');
+          if (cont) cont.innerHTML = html;
+        })();
+
+        if (chartRef) { chartRef.destroy(); chartRef = null; }
+        if (window.chartRefMensual) { window.chartRefMensual.destroy(); window.chartRefMensual = null; }
+
+        const ctx = document.getElementById("estadisticasChart");
+        const ctxMensual = document.getElementById("estadisticasChartMensual");
+        
+        chartRef = new Chart(ctx, {
+          type: "line",
+          data: { labels: fechas, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true }, tooltip: { mode: "index", intersect: false } },
+            scales: { x: { title: { display: true, text: "Días" } }, y: { title: { display: true, text: "Tiempo (min)" }, beginAtZero: true } }
+          }
+        });
+
+        window.chartRefMensual = new Chart(ctxMensual, {
+          type: "line",
+          data: { labels: meses, datasets: datasetsMensual },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true }, tooltip: { mode: "index", intersect: false } },
+            scales: { x: { title: { display: true, text: "Meses" } }, y: { title: { display: true, text: "Tiempo (min)" }, beginAtZero: true } }
+          }
+        });
+
+        // Resetear vistas y agregar listeners solo una vez
+        if (!window.togglesConfigured) {
+          const btnDiaria = document.getElementById('btnVistasDiaria');
+          const btnMensual = document.getElementById('btnVistaMensual');
+          
+          btnDiaria.addEventListener('click', function() {
+            const ctxDia = document.getElementById("estadisticasChart");
+            const ctxMes = document.getElementById("estadisticasChartMensual");
+            
+            if (!this.classList.contains('active')) {
+              this.classList.add('active');
+              this.classList.remove('btn-vista-outline');
+              this.classList.add('btn-vista');
+              btnMensual.classList.remove('active');
+              btnMensual.classList.add('btn-vista-outline');
+              btnMensual.classList.remove('btn-vista');
+              ctxDia.style.display = 'block';
+              ctxMes.style.display = 'none';
+              if (chartRef) chartRef.resize();
+            }
+          });
+
+          btnMensual.addEventListener('click', function() {
+            const ctxDia = document.getElementById("estadisticasChart");
+            const ctxMes = document.getElementById("estadisticasChartMensual");
+            
+            if (!this.classList.contains('active')) {
+              this.classList.add('active');
+              this.classList.remove('btn-vista-outline');
+              this.classList.add('btn-vista');
+              btnDiaria.classList.remove('active');
+              btnDiaria.classList.add('btn-vista-outline');
+              btnDiaria.classList.remove('btn-vista');
+              ctxDia.style.display = 'none';
+              ctxMes.style.display = 'block';
+              if (window.chartRefMensual) window.chartRefMensual.resize();
+            }
+          });
+          
+          window.togglesConfigured = true;
+        }
+
+        // Resetear botones a vista diaria
+        const btnDiaria2 = document.getElementById('btnVistasDiaria');
+        const btnMensual2 = document.getElementById('btnVistaMensual');
+        const ctx2 = document.getElementById("estadisticasChart");
+        const ctxMensual2 = document.getElementById("estadisticasChartMensual");
+        
+        btnDiaria2.classList.add('active');
+        btnDiaria2.classList.remove('btn-vista-outline');
+        btnDiaria2.classList.add('btn-vista');
+        btnMensual2.classList.remove('active');
+        btnMensual2.classList.add('btn-vista-outline');
+        btnMensual2.classList.remove('btn-vista');
+        ctx2.style.display = 'block';
+        ctxMensual2.style.display = 'none';
+
+        const gaugeOptions = (value, color, maxValue = 80) => {
+          return {
+            type: 'doughnut',
+            data: {
+              datasets: [{
+                data: [Math.min(value, maxValue), Math.max(0, maxValue - value)],
+                backgroundColor: [color, '#e0e0e0'],
+                borderWidth: 0,
+                cutout: '80%'
+              }]
+            },
+            options: {
+              rotation: -90,
+              circumference: 180,
+              plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false },
+                title: {
+                  display: true,
+                  text: `${value} km/h`,
+                  font: { size: 16 }
+                },
+                datalabels: { display: false }
+              }
+            },
+            plugins: [{
+              id: 'needle',
+              afterDraw(chart) {
+                const { ctx } = chart;
+                try {
+                  const meta = chart.getDatasetMeta(0);
+                  if (!meta || !meta.data || !meta.data.length) return;
+                  const arc = meta.data[0];
+                  const cx = arc.x;
+                  const cy = arc.y;
+                  const outer = arc.outerRadius || (arc._model && arc._model.outerRadius) || Math.min(chart.width, chart.height) / 2;
+                  const endAngle = arc.endAngle ?? (arc._model && arc._model.endAngle);
+                  if (endAngle == null) return;
+
+                  const length = outer * 0.95;
+                  const tipX = cx + Math.cos(endAngle) * length;
+                  const tipY = cy + Math.sin(endAngle) * length;
+
+                  ctx.save();
+                  ctx.strokeStyle = '#333';
+                  ctx.lineWidth = 3;
+                  ctx.beginPath();
+                  ctx.moveTo(cx, cy);
+                  ctx.lineTo(tipX, tipY);
+                  ctx.stroke();
+
+                  ctx.fillStyle = '#333';
+                  ctx.beginPath();
+                  ctx.arc(cx, cy, 8, 0, 2 * Math.PI);
+                  ctx.fill();
+                  ctx.restore();
+                } catch (e) { /* silent */ }
+              }
+            }]
+          };
+        };
+
+        // Destruir gráficas anteriores si existen
+        if (window.chartTransporte) { window.chartTransporte.destroy(); }
+        if (window.chartVehiculo) { window.chartVehiculo.destroy(); }
+
+        // Crear velocímetros con los valores calculados
+        window.chartTransporte = new Chart(document.getElementById("velTransporte"), gaugeOptions(velocidades["Ruta Transporte"], '#4CAF50', 80));
+        window.chartVehiculo = new Chart(document.getElementById("velVehiculo"), gaugeOptions(velocidades["Ruta Vehiculo"], '#616161', 80));
+
+
+
+        const modal = new bootstrap.Modal(document.getElementById("estadisticasModal"));
+        modal.show();
+        console.log("Modal mostrado correctamente");
+        } catch (error) {
+          console.error("Error en dibujarGraficaRuta:", error);
+          alert("Error al cargar la gráfica: " + error.message);
+        }
+      }
+      } catch(error) {
+        console.error("Error en el script principal:", error);
+        alert("Error en la aplicación: " + error.message);
+      }
+    </script>
+  </body>
+</html>

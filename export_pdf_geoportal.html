@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exportar PDF Geoportal AO</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; }
+        .toolbar { background: #922B21; color: white; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+        .toolbar h1 { font-size: 18px; margin: 0; }
+        .toolbar button { background: #fff; color: #922B21; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: 700; }
+        .toolbar button:hover { background: #f1f1f1; }
+        #pdfContent { padding: 20px; }
+        .page { background: white; border-radius: 10px; padding: 18px; margin-bottom: 20px; box-shadow: 0 2px 15px rgba(0,0,0,0.08); page-break-after: always; }
+        .route-header { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .route-title { font-size: 20px; font-weight: 800; color: #222; }
+        .route-subtitle { font-size: 14px; color: #555; }
+        .turno-block { margin-bottom: 26px; page-break-inside: avoid; break-inside: avoid; }
+        .turno-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #333; }
+        .map-container { width: 100%; height: 360px; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid; }
+        .stats-box { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 14px; }
+        .stat-card { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px; min-height: 90px; }
+        .stat-label { font-size: 12px; color: #666; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+        .map-and-table { display: flex; align-items: flex-start; }
+        .nodes-table { width: 50%; margin-left: 10px; font-size: 10px; }
+        .nodes-table table { width: 100%; border-collapse: collapse; }
+        .nodes-table th, .nodes-table td { border: 1px solid #ddd; padding: 4px; text-align: left; }
+        .nodes-table th { background-color: #f2f2f2; }
+        .leaflet-popup-content-wrapper { background: rgba(255,255,255,0.98) !important; border: 1px solid rgba(0,0,0,0.15) !important; box-shadow: 0 0 8px rgba(0,0,0,0.12) !important; }
+        .leaflet-popup-content-wrapper .leaflet-popup-content { font-size: 8px !important; line-height: 1.2 !important; color: #222 !important; max-width: 180px !important; white-space: normal !important; padding: 4px 6px !important; }
+        .leaflet-popup-tip-container .leaflet-popup-tip { background: rgba(255,255,255,0.98) !important; }
+        @media print {
+            .toolbar { display: none; }
+            body { background: white; }
+            .page { box-shadow: none; margin-bottom: 0; }
+            .turno-block, .map-container { page-break-inside: avoid; break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div>
+            <h1>Exportar PDF - Geoportal AO</h1>
+            <div style="font-size:12px; opacity:.85; margin-top:4px;">Genera un PDF por ruta con bloques de turno y nodos con información visible.</div>
+        </div>
+        <button id="btnExport">Generar PDF</button>
+    </div>
+    <div id="pdfContent"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        let routesToExport = [];
+
+        const turnos = [
+            { key: 'Matutino', geojson: 'data/rutas_matutino.geojson', nodos: 'data/NODOS MATUTINO.geojson', color: '#FFD700' },
+            { key: 'Tarde', geojson: 'data/rutas_tarde.geojson', nodos: 'data/NODOS TARDE.geojson', color: '#FF9800' },
+            { key: 'Vespertino', geojson: 'data/rutas_vespertino.geojson', nodos: 'data/NODOS VESPERTINO.geojson', color: '#3F51B5' }
+        ];
+
+        let tiemposData = null;
+
+        function idSafe(text) {
+            return String(text || '')
+                .replace(/\s+/g, '-')
+                .replace(/[^\w-]/g, '');
+        }
+
+        function normalizeRouteId(text) {
+            return String(text || '')
+                .trim()
+                .replace(/\s+/g, ' ')
+                .replace(/\u00A0/g, ' ')
+                .toUpperCase();
+        }
+
+        async function cargarTiempos() {
+            const res = await fetch('data/tiempos.json');
+            if (!res.ok) throw new Error('No se pudo cargar data/tiempos.json');
+            const data = await res.json();
+            tiemposData = [];
+            for (const turno of Object.keys(data)) {
+                if (Array.isArray(data[turno])) tiemposData.push(...data[turno]);
+            }
+        }
+
+        function getRouteIdentifiers(routeId) {
+            const normalized = normalizeRouteId(routeId);
+            const ids = new Set([String(routeId || '').trim()]);
+            if (normalized.includes('12') && normalized.includes('IDA')) {
+                ids.add('12 IDA');
+                ids.add('12 A IDA');
+            }
+            if (normalized.includes('12') && normalized.includes('REGRESO')) {
+                ids.add('12 REGRESO');
+                ids.add('12 A REGRESO');
+            }
+            return Array.from(ids).map(id => String(id).trim()).filter(Boolean);
+        }
+
+        function obtenerPromedios(routeId, turnoKey) {
+            const routeIds = getRouteIdentifiers(routeId).map(id => String(id).trim().toLowerCase());
+            const turnoFiltro = String(turnoKey || '').trim().toLowerCase();
+            const filtro = tiemposData.filter(item => {
+                const rutasId = String(item['RUTAS ID'] || '').trim().toLowerCase();
+                const turnoItem = String(item.Turno || '').trim().toLowerCase();
+                return routeIds.includes(rutasId) && turnoItem === turnoFiltro;
+            });
+            const result = { transporte: 'Sin datos', vehiculo: 'Sin datos', velTransporte: '0', velVehiculo: '0', distancia: 0 };
+            if (!filtro.length) return result;
+            const agrupado = { 'Ruta Transporte': [], 'Ruta Vehiculo': [] };
+            filtro.forEach(item => {
+                const tipo = String(item['TIPO TRANSPORTE']).trim();
+                if (agrupado[tipo]) agrupado[tipo].push(Number(item.Tiempo));
+            });
+            const distancia = obtenerDistancia(routeId, turnoKey);
+            result.distancia = distancia;
+            Object.entries(agrupado).forEach(([tipo, valores]) => {
+                if (!valores.length) return;
+                const media = valores.reduce((a,b) => a + b, 0) / valores.length;
+                const nombre = tipo === 'Ruta Transporte' ? 'transporte' : 'vehiculo';
+                result[nombre] = media.toFixed(2) + ' min';
+                const vel = distancia > 0 ? distancia / (media / 60) : 0;
+                result[nombre === 'transporte' ? 'velTransporte' : 'velVehiculo'] = vel > 0 ? vel.toFixed(1) : '0';
+            });
+            return result;
+        }
+
+        function obtenerDistancia(routeId, turnoKey) {
+            const turno = turnos.find(t => t.key === turnoKey);
+            if (!turno) return 0;
+            const parsed = window.geojsonCache?.[turno.key];
+            if (!parsed) return 0;
+            const routeIds = getRouteIdentifiers(routeId, turnoKey);
+            const feat = parsed.features.find(feature => {
+                const id = String(feature.properties?.IDENTIFICA || '').trim();
+                return routeIds.includes(id);
+            });
+            return feat ? Number(feat.properties?.Distancia || 0) : 0;
+        }
+
+        async function cargarGeojsons() {
+            window.geojsonCache = {};
+            const routesSet = new Set();
+            for (const turno of turnos) {
+                const res = await fetch(turno.geojson);
+                if (!res.ok) throw new Error('No se pudo cargar ' + turno.geojson);
+                const data = await res.json();
+                window.geojsonCache[turno.key] = data;
+                // Recopilar rutas únicas
+                data.features.forEach(feature => {
+                    const id = String(feature.properties?.IDENTIFICA || '').trim();
+                    if (!id) return;
+                    const normalized = normalizeRouteId(id);
+                    if (normalized.includes('12') && normalized.includes('IDA')) {
+                        routesSet.add('12 IDA');
+                        routesSet.add('12 A IDA');
+                    }
+                    if (normalized.includes('12') && normalized.includes('REGRESO')) {
+                        routesSet.add('12 REGRESO');
+                        routesSet.add('12 A REGRESO');
+                    }
+                    routesSet.add(id);
+                });
+            }
+            // Crear lista de rutas
+            const routes = Array.from(routesSet).sort().map(id => {
+                // Buscar el nombre O/D
+                let name = `Ruta ${id}`;
+                const routeIds = getRouteIdentifiers(id);
+                for (const turnoData of Object.values(window.geojsonCache)) {
+                    const feat = turnoData.features.find(f => routeIds.includes(String(f.properties?.IDENTIFICA || '').trim()));
+                    if (feat && feat.properties["O/D"]) {
+                        name = feat.properties["O/D"];
+                        break;
+                    }
+                }
+                return { routeId: id, label: `Ruta ${id}`, name: name };
+            }).filter(route => !/^4\s*A\b/i.test(route.routeId));
+            return routes;
+        }
+
+        function crearPaginaDeRuta(route) {
+            const page = document.createElement('div');
+            page.className = 'page';
+            const header = document.createElement('div');
+            header.className = 'route-header';
+            header.innerHTML = `<div><div class="route-title">${route.label}: ${route.name}</div><div class="route-subtitle">Solo la ruta seleccionada está visible en cada bloque de turno.</div></div>`;
+            page.appendChild(header);
+
+            const safeRouteId = idSafe(route.routeId);
+            turnos.forEach(turno => {
+                const bloque = document.createElement('div');
+                bloque.className = 'turno-block';
+                bloque.innerHTML = `
+                    <div class="turno-title">Turno ${turno.key}</div>
+                    <div class="map-and-table">
+                        <div class="map-container" id="map-${safeRouteId}-${turno.key.toLowerCase()}"></div>
+                        <div class="nodes-table" id="table-${safeRouteId}-${turno.key.toLowerCase()}"></div>
+                    </div>
+                    <div class="stats-box" id="stats-${safeRouteId}-${turno.key.toLowerCase()}"></div>
+                `;
+                page.appendChild(bloque);
+            });
+            document.getElementById('pdfContent').appendChild(page);
+        }
+
+        function crearEstadisticas(routeId, turnoKey) {
+            const stats = obtenerPromedios(routeId, turnoKey);
+            const safeRouteId = idSafe(routeId);
+            const container = document.getElementById(`stats-${safeRouteId}-${turnoKey.toLowerCase()}`);
+            if (!container) return;
+            const transporteHeight = Math.min(Math.max(Number(stats.velTransporte) || 5, 20), 100);
+            const vehiculoHeight = Math.min(Math.max(Number(stats.velVehiculo) || 5, 20), 100);
+            container.innerHTML = `
+                <div class="stat-card"><div class="stat-label">Tiempo promedio Ruta Transporte</div><div class="stat-value">${stats.transporte}</div></div>
+                <div class="stat-card"><div class="stat-label">Tiempo promedio Ruta Vehículo</div><div class="stat-value">${stats.vehiculo}</div></div>
+                <div class="stat-card"><div class="stat-label">Velocidad promedio Ruta Transporte</div><div class="stat-value">${stats.velTransporte} km/h</div></div>
+                <div class="stat-card"><div class="stat-label">Velocidad promedio Ruta Vehículo</div><div class="stat-value">${stats.velVehiculo} km/h</div></div>
+            `;
+        }
+
+        function crearTablaNodos(routeId, turnoKey, nodeData) {
+            const safeRouteId = idSafe(routeId);
+            const container = document.getElementById(`table-${safeRouteId}-${turnoKey.toLowerCase()}`);
+            if (!container) return;
+            let tableHtml = '<table><thead><tr><th>N°</th><th>Motivo Principal</th><th>Turno</th><th>Amplitud</th></tr></thead><tbody>';
+            nodeData.forEach(node => {
+                tableHtml += `<tr><td>${node.numero}</td><td>${node.motivo}</td><td>${node.turno}</td><td>${node.amplitud}</td></tr>`;
+            });
+            tableHtml += '</tbody></table>';
+            container.innerHTML = tableHtml;
+        }
+
+        function routeMatchesFeature(feature, routeId) {
+            const id = normalizeRouteId(feature.properties?.IDENTIFICA);
+            const target = normalizeRouteId(routeId);
+            if (!id || !target) return false;
+            if (target.includes('12') && target.includes('IDA')) {
+                return id.includes('12') && id.includes('IDA');
+            }
+            if (target.includes('12') && target.includes('REGRESO')) {
+                return id.includes('12') && id.includes('REGRESO');
+            }
+            const routeIds = getRouteIdentifiers(routeId).map(id => normalizeRouteId(id));
+            return routeIds.includes(id);
+        }
+
+        function nodoPerteneceARuta(feature, routeId) {
+            const rutaProp = String(feature.properties?.Ruta || '');
+            const sentidoProp = String(feature.properties?.Sentido || '');
+            const normalizedRoute = String(routeId || '').toUpperCase().replace(/\s+/g, ' ').trim();
+            const isRuta12 = normalizedRoute.includes('12');
+            const isIda = normalizedRoute.includes('IDA');
+            const isRegreso = normalizedRoute.includes('REGRESO');
+
+            if (isRuta12 && isIda) {
+                return rutaProp.includes('12') && sentidoProp.toUpperCase().includes('IDA');
+            } else if (isRuta12 && isRegreso) {
+                return rutaProp.includes('12') && sentidoProp.toUpperCase().includes('REGRESO');
+            }
+
+            const rutas = rutaProp.split(',').map(r => r.trim());
+            return rutas.includes(String(routeId).trim());
+        }
+
+        function crearMapa(routeId, turno) {
+            return new Promise(resolve => {
+                const safeRouteId = idSafe(routeId);
+                const containerId = `map-${safeRouteId}-${turno.key.toLowerCase()}`;
+                const container = document.getElementById(containerId);
+                if (!container) {
+                    resolve();
+                    return;
+                }
+                const map = L.map(containerId, { zoomControl: false, attributionControl: false }).setView([19.359, -99.213], 12);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '' }).addTo(map);
+
+                const turnoData = window.geojsonCache[turno.key];
+                if (turnoData) {
+                    L.geoJSON(turnoData, {
+                        filter: feature => routeMatchesFeature(feature, routeId),
+                        style: { color: '#000000', weight: 9, opacity: 0.9 }
+                    }).addTo(map);
+                }
+                const rutasFiltradas = turnoData ? L.geoJSON(turnoData, {
+                    filter: feature => routeMatchesFeature(feature, routeId),
+                    style: { color: turno.color, weight: 5, opacity: 0.9 }
+                }).addTo(map) : null;
+
+                container.querySelectorAll('.leaflet-tooltip.route-label').forEach(el => el.remove());
+
+                let bounds = null;
+                if (rutasFiltradas && rutasFiltradas.getBounds && rutasFiltradas.getBounds().isValid()) {
+                    bounds = rutasFiltradas.getBounds();
+                }
+
+                fetch(turno.nodos)
+                    .then(r => r.json())
+                    .then(gj => {
+                        let nodeIndex = 1;
+                        const nodeData = [];
+                        gj.features.filter(feature => nodoPerteneceARuta(feature, routeId)).forEach(feature => {
+                            // Agregar línea del nodo en rojo, más gruesa
+                            L.geoJSON(feature, {
+                                style: { color: '#FF0000', weight: 7, opacity: 0.9 }
+                            }).addTo(map);
+
+                            // Calcular punto medio para el número
+                            let midCoords = null;
+                            if (feature.geometry.type === 'LineString') {
+                                midCoords = feature.geometry.coordinates[Math.floor(feature.geometry.coordinates.length / 2)];
+                            } else if (feature.geometry.type === 'MultiLineString') {
+                                const firstLine = feature.geometry.coordinates[0] || [];
+                                midCoords = firstLine[Math.floor(firstLine.length / 2)];
+                            }
+                            if (midCoords) {
+                                const latlng = [midCoords[1], midCoords[0]];
+                                L.marker(latlng, {
+                                    icon: L.divIcon({
+                                        className: 'node-number',
+                                        html: `<div style="background: red; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">${nodeIndex}</div>`,
+                                        iconSize: [20, 20],
+                                        iconAnchor: [10, 10]
+                                    })
+                                }).addTo(map);
+                                if (bounds) bounds.extend(latlng);
+                            }
+
+                            const motivo = feature.properties?.Motivo_Pri || 's/d';
+                            const turnoNodo = feature.properties?.Turno || 's/d';
+                            const amplitud = feature.properties?.Amplitud || 's/d';
+                            nodeData.push({ numero: nodeIndex, motivo, turno: turnoNodo, amplitud });
+                            nodeIndex++;
+                        });
+
+                        crearTablaNodos(routeId, turno.key, nodeData);
+
+                        if (bounds && bounds.isValid()) {
+                            map.fitBounds(bounds.pad(0.12), { padding: [30, 30] });
+                        }
+
+                        if ((!rutasFiltradas || !rutasFiltradas.getLayers().length) && nodeData.length === 0) {
+                            L.marker([19.359, -99.213], { opacity: 0 }).addTo(map).bindPopup('No hay datos disponibles para esta ruta en este turno.', { autoClose: false, closeOnClick: false }).openPopup();
+                            map.setView([19.359, -99.213], 12);
+                        }
+                    })
+                    .catch(err => console.warn('Error nodos:', err))
+                    .finally(() => resolve(map));
+            });
+        }
+
+        async function inicializar() {
+            try {
+                await cargarTiempos();
+                routesToExport = await cargarGeojsons();
+                if (!routesToExport.length) {
+                    document.getElementById('pdfContent').innerHTML = '<div style="padding:20px; color:#922B21;">No se encontraron rutas. Revisa que los archivos JSON/GeoJSON estén disponibles y que la página se abra desde un servidor HTTP.</div>';
+                    return;
+                }
+                routesToExport.forEach(route => crearPaginaDeRuta(route));
+                await Promise.all(routesToExport.flatMap(route => turnos.map(turno => crearMapa(route.routeId, turno))));
+                routesToExport.forEach(route => turnos.forEach(turno => crearEstadisticas(route.routeId, turno.key)));
+            } catch (err) {
+                console.error('Error inicializando la exportación de PDF:', err);
+                document.getElementById('pdfContent').innerHTML = `<div style="padding:20px; color:#922B21;">Error cargando datos: ${err.message}</div>`;
+                throw err;
+            }
+        }
+
+        document.getElementById('btnExport').addEventListener('click', () => {
+            const element = document.getElementById('pdfContent');
+            if (!element) {
+                alert('No se encontró el contenido para exportar a PDF.');
+                return;
+            }
+            html2pdf().set({
+                margin: [10, 10, 10, 10],
+                filename: 'GeoportalAO_Rutas.pdf',
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false },
+                jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' },
+                pagebreak: { mode: ['css', 'legacy'] }
+            }).from(element).save().then(() => {
+                alert('PDF generado exitosamente: GeoportalAO_Rutas.pdf');
+            }).catch(err => {
+                console.error('Error generando PDF:', err);
+                alert('Error al generar PDF. Revisa la consola del navegador para detalles.');
+            });
+        });
+
+        window.addEventListener('load', async () => {
+            try {
+                await inicializar();
+            } catch (err) {
+                alert('Hubo un error al cargar los datos. Revisa la consola del navegador.');
+            }
+        });
+    </script>
+</body>
+</html>

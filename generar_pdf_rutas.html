@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Rutas - Geoportal AO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #pdfContent {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .page {
+            page-break-after: always;
+            margin-bottom: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .map-container {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .route-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #333;
+        }
+        .turno-block {
+            margin-bottom: 30px;
+        }
+        .turno-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        .leaflet-tooltip.node-tooltip {
+            background: rgba(255, 255, 255, 0.95);
+            color: #222;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 11px;
+            max-width: 240px;
+            white-space: normal;
+        }
+        .stats-container {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            border: 1px solid #ddd;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 10px;
+        }
+        .stat-item {
+            text-align: center;
+            flex: 1;
+        }
+        .stat-label {
+            font-weight: bold;
+            color: #555;
+            font-size: 14px;
+        }
+        .stat-value {
+            font-size: 20px;
+            color: #007bff;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .velocity-chart {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            margin-top: 10px;
+            height: 120px;
+        }
+        .velocity-bar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+        .bar {
+            background: #007bff;
+            border-radius: 3px;
+            width: 60%;
+            margin-bottom: 5px;
+        }
+        .bar-label {
+            font-size: 12px;
+            color: #555;
+            text-align: center;
+        }
+        .bar-value {
+            font-weight: bold;
+            color: #007bff;
+            font-size: 14px;
+        }
+        @media print {
+            body {
+                background: white;
+            }
+            .controls {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <button onclick="generarPDF()">Descargar PDF</button>
+        </div>
+        
+        <div id="pdfContent"></div>
+    </div>
+
+    <script>
+        const routeTurnos = [
+            { key: 'Matutino', geojson: 'data/rutas_matutino.geojson', nodos: 'data/NODOS MATUTINO.geojson' },
+            { key: 'Tarde', geojson: 'data/rutas_tarde.geojson', nodos: 'data/NODOS TARDE.geojson' },
+            { key: 'Vespertino', geojson: 'data/rutas_vespertino.geojson', nodos: 'data/NODOS VESPERTINO.geojson' }
+        ];
+
+        const routesToExport = [
+            { label: 'Ruta 1', routeId: '4', name: 'CC Santa Fé - Tacubaya' },
+            { label: 'Ruta 2', routeId: '2', name: 'Jalalpa - Tacubaya' }
+        ];
+
+        const timePromedios = {
+            '4': { Matutino: '47.49 min', Tarde: 'Sin datos', Vespertino: 'Sin datos' },
+            '2': { Matutino: '54.14 min', Tarde: 'Sin datos', Vespertino: 'Sin datos' }
+        };
+
+        const routeColors = {
+            '1': '#FF0000',
+            '2': '#0000FF',
+            '4': '#FFA500',
+            '5': '#00AA00',
+            '7': '#9900FF',
+            '8': '#00FFFF',
+            '9': '#FF00FF',
+            '10': '#00AA00',
+            '11': '#00BB00',
+            '12': '#00CC00'
+        };
+
+        function crearPaginas() {
+            const pdfContent = document.getElementById('pdfContent');
+            routesToExport.forEach(route => {
+                const page = document.createElement('div');
+                page.className = 'page';
+                page.innerHTML = `<div class="route-title">${route.label}: ${route.name}</div>`;
+
+                routeTurnos.forEach(turno => {
+                    const mapId = `map-${route.routeId}-${turno.key.toLowerCase()}`;
+                    page.innerHTML += `
+                        <div class="turno-block">
+                            <div class="turno-title">Turno ${turno.key}</div>
+                            <div class="map-container" id="${mapId}"></div>
+                            <div class="stats-container">
+                                <div class="stats-row">
+                                    <div class="stat-item">
+                                        <div class="stat-label">Tiempo promedio</div>
+                                        <div class="stat-value">${timePromedios[route.routeId][turno.key]}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+
+                pdfContent.appendChild(page);
+            });
+        }
+
+        function createMap(containerId, geojsonUrl, nodosUrl, routeId) {
+            const map = L.map(containerId, {
+                zoom: false,
+                attributionControl: false
+            }).setView([19.360, -99.235], 12);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: ''
+            }).addTo(map);
+
+            let routeLayer = null;
+
+            fetch(geojsonUrl)
+                .then(response => response.json())
+                .then(data => {
+                    routeLayer = L.geoJSON(data, {
+                        filter: feature => {
+                            const rutaId = (feature.properties?.IDENTIFICA || '').trim();
+                            return rutaId === routeId;
+                        },
+                        style: feature => ({
+                            color: routeColors[routeId] || '#FF7F00',
+                            weight: 4,
+                            opacity: 0.85
+                        })
+                    }).addTo(map);
+
+                    if (routeLayer && routeLayer.getBounds && routeLayer.getBounds().isValid()) {
+                        map.fitBounds(routeLayer.getBounds(), { padding: [20, 20] });
+                    }
+                })
+                .catch(error => console.error('Error cargando rutas:', error));
+
+            fetch(nodosUrl)
+                .then(response => response.json())
+                .then(data => {
+                    data.features.forEach(feature => {
+                        const rutaList = (feature.properties?.Ruta || '').split(',').map(s => s.trim());
+                        if (!rutaList.includes(routeId)) return;
+
+                        let coords = null;
+                        if (feature.geometry.type === 'MultiLineString') {
+                            const firstLine = feature.geometry.coordinates[0];
+                            const midPoint = Math.floor(firstLine.length / 2);
+                            coords = firstLine[midPoint];
+                        } else if (feature.geometry.type === 'LineString') {
+                            const midPoint = Math.floor(feature.geometry.coordinates.length / 2);
+                            coords = feature.geometry.coordinates[midPoint];
+                        }
+
+                        if (!coords) return;
+
+                        const marker = L.circleMarker([coords[1], coords[0]], {
+                            radius: 6,
+                            fillColor: '#FF6B6B',
+                            color: '#C73030',
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        }).addTo(map);
+
+                        const amplitud = feature.properties?.Amplitud || 'Nodo';
+                        const tooltipContent = `
+                            <div style="font-size: 11px; line-height: 1.3;">
+                                <div style="font-weight: bold; margin-bottom: 4px;">${amplitud}</div>
+                                <div><strong>Ruta:</strong> ${feature.properties?.Ruta || 'N/A'}</div>
+                                <div><strong>Turno:</strong> ${feature.properties?.Turno || 'N/A'}</div>
+                                <div><strong>Motivo:</strong> ${feature.properties?.Motivo_Pri || 'N/A'}</div>
+                            </div>`;
+
+                        marker.bindTooltip(tooltipContent, {
+                            permanent: true,
+                            direction: 'right',
+                            offset: [10, 0],
+                            className: 'node-tooltip'
+                        });
+                    });
+                })
+                .catch(error => console.error('Error cargando nodos:', error));
+
+            return map;
+        }
+
+        window.addEventListener('load', function() {
+            crearPaginas();
+            setTimeout(() => {
+                routesToExport.forEach(route => {
+                    routeTurnos.forEach(turno => {
+                        createMap(
+                            `map-${route.routeId}-${turno.key.toLowerCase()}`,
+                            turno.geojson,
+                            turno.nodos,
+                            route.routeId
+                        );
+                    });
+                });
+            }, 500);
+        });
+
+        function generarPDF() {
+            const element = document.getElementById('pdfContent');
+            const opt = {
+                margin: [8, 8, 8, 8],
+                filename: 'Rutas_Geoportal_AO.pdf',
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                },
+                jsPDF: {
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                alert('PDF generado exitosamente: Rutas_Geoportal_AO.pdf');
+            }).catch(err => {
+                alert('Error al generar PDF: ' + err);
+            });
+        }
+    </script>
+</body>
+</html>

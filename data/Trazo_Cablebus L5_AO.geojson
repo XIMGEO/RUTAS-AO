@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "Trazo_Cablebus L5_AO",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": null, "Name": "Troncal", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": "clampToSeaFloor", "tessellate": 1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null, "Descripci_": null, "Propuesta": null, "Longitud": null }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ -99.24696063913936, 19.324890531390039, 0.0 ], [ -99.234296732998899, 19.33439332388722, 0.0 ], [ -99.225672223000331, 19.345656512394822, 0.0 ], [ -99.223423361822753, 19.361470320973801, 0.0 ], [ -99.222786736323656, 19.368600413229348, 0.0 ], [ -99.212559300840155, 19.374949541621579, 0.0 ], [ -99.188564506201558, 19.375630130113151, 0.0 ] ] ] } },
+{ "type": "Feature", "properties": { "id": null, "Name": "Antena Oyamel", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": null, "tessellate": 1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null, "Descripci_": null, "Propuesta": null, "Longitud": null }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ -99.246958784702556, 19.324891028835879, 0.0 ], [ -99.248623678010915, 19.316988124179211, 0.0 ], [ -99.256018928788563, 19.308428033145319, 0.0 ], [ -99.267780748741018, 19.305747788024121, 0.0 ] ] ] } },
+{ "type": "Feature", "properties": { "id": null, "Name": "Antena San Bartolo", "descriptio": null, "timestamp": null, "begin": null, "end": null, "altitudeMo": null, "tessellate": 1, "extrude": 0, "visibility": -1, "drawOrder": null, "icon": null, "Descripci_": null, "Propuesta": null, "Longitud": null }, "geometry": { "type": "MultiLineString", "coordinates": [ [ [ -99.27002142197847, 19.327035139263501, 0.0 ], [ -99.258997617145312, 19.32575339519364, 0.0 ], [ -99.24709936556134, 19.325027587539608, 0.0 ] ] ] } }
+]
+}
