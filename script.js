@@ -6,7 +6,12 @@ function syncMapAfterSidebarToggle() {
   if (!window.map) return;
   window.requestAnimationFrame(() => {
     window.map.invalidateSize({ pan: false });
-    window.setTimeout(() => window.map.invalidateSize({ pan: false }), 220);
+    window.setTimeout(() => {
+      window.map.invalidateSize({ pan: false });
+      if (typeof window.adjustMapForSidebar === 'function') {
+        window.adjustMapForSidebar();
+      }
+    }, 220);
   });
 }
 

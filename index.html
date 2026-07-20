@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Geoportal AO</title>
 
     <!-- Favicon y fuentes -->
@@ -19,7 +19,7 @@
     <style>
       .main-container { display: flex; }
       .map-container { flex: 1; }
-      #map { width: 100%; height: calc(100vh - 80px); }
+      #map { width: 100%; height: 100%; }
       .control-capas-panel .form-check { margin-bottom: .75rem; }
       .legend-block { margin: .25rem 0 0 1.75rem; display: flex; flex-direction: column; gap: .25rem; }
       .legend-row { display: flex; align-items: center; gap: .4rem; font-size: .8rem; color: #444; }
@@ -108,7 +108,7 @@
   </head>
 
   <body>
-    <nav class="navbar navbar-expand-lg">
+    <nav class="navbar navbar-expand-lg fixed-top">
       <div class="container-fluid">
         <a class="navbar-brand" href="#">
           <img src="img/logo/logo.png" class="logo img-fluid" alt="logo">
@@ -236,14 +236,17 @@ para ver sus detalles.</h6>
         touchZoom: true,
         touchZoomRotate: true,
         keyboard: true,
-        bounceAtZoomLimits: false
-      }).setView([19.359, -99.213], 12);
+        bounceAtZoomLimits: false,
+        minZoom: 11,
+        maxZoom: 18,
+        maxBoundsViscosity: 0.9
+      }).setView([19.359, -99.213], 13);
       // also expose globally so external modules can access it if needed (e.g. Capa_pol.js)
       window.map = map;
       
       // Permitir gestos táctiles del mapa en celular sin bloquear el zoom de la página
       const mapContainer = map.getContainer();
-      mapContainer.style.touchAction = 'manipulation';
+      mapContainer.style.touchAction = 'none';
       mapContainer.style.userSelect = 'none';
       mapContainer.style.webkitUserSelect = 'none';
       mapContainer.style.webkitTouchCallout = 'none';
@@ -256,12 +259,35 @@ para ver sus detalles.</h6>
       ).addTo(map);
 
       // ====== LÍMITE AO ======
+      const SIDEBAR_WIDTH = 300;
+      const SIDEBAR_OPEN_LEFT_PADDING = SIDEBAR_WIDTH + 20;
+      const SIDEBAR_CLOSED_LEFT_PADDING = 20;
       let limiteLayer = null;
+      let limiteBounds = null;
+
+      window.adjustMapForSidebar = function() {
+        if (!limiteBounds || !window.map) return;
+        const isSidebarOpen = !document.getElementById('sidebarContainer').classList.contains('oculto');
+        const paddingTopLeft = isSidebarOpen ? [SIDEBAR_OPEN_LEFT_PADDING, 20] : [SIDEBAR_CLOSED_LEFT_PADDING, 20];
+        const paddingBottomRight = [20, 20];
+        window.map.invalidateSize({ pan: false });
+        window.map.fitBounds(limiteBounds, {
+          paddingTopLeft,
+          paddingBottomRight,
+          animate: false
+        });
+      };
+
       fetch("data/limite_alcaldia.geojson")
         .then(r => r.json())
         .then(gj => {
           limiteLayer = L.geoJSON(gj, { style: { color: "#000000", weight: 4, fill: false } }).addTo(map);
-          try { map.fitBounds(limiteLayer.getBounds(), { padding: [20,20] }); } catch(e) {}
+          try {
+            limiteBounds = limiteLayer.getBounds();
+            const expandedBounds = limiteBounds.pad(0.22);
+            map.setMaxBounds(expandedBounds);
+            window.adjustMapForSidebar();
+          } catch(e) {}
         });
 
       const coloresTurno = { matutino: "#FFD700", tarde: "#FF9800", vespertino: "#3F51B5" };
@@ -327,7 +353,7 @@ para ver sus detalles.</h6>
                 const rutaNodo = feat.properties?.Ruta ?? "s/d";
                 const sentido = feat.properties?.Sentido ?? "s/d";
                 const mes = feat.properties?.Mes ?? "s/d";
-                const popup = `<strong>Conflicto vial</strong><br><strong>Motivo principal:</strong> ${motivoPri}<br><strong>Ruta:</strong> ${rutaNodo}<br><strong>Turno:</strong> ${turnoNodo}<br><strong>Sentido:</strong> ${sentido}<br><strong>Mes:</strong> ${mes}<br><strong>Amplitud:</strong> ${amplitud}`;
+                const popup = `<strong>Conflicto vial</strong><br><strong>Motivo principal:</strong> ${motivoPri}<br><strong>Turno:</strong> ${turnoNodo}<br><strong>Amplitud:</strong> ${amplitud}`;
                 layer.bindPopup(popup, { maxWidth: 260 });
                 const abrirPopupNodo = (e) => {
                   if (e?.originalEvent) e.originalEvent.stopPropagation?.();
