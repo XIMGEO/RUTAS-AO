@@ -172,18 +172,6 @@
               </div>
             </div>
             <hr />
-            <h6 class="mb-2">Capas Adicionales</h6>
-            <div id="controlCapasAdicionalesContainer" class="control-capas-panel">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="chkCablebus">
-                <label class="form-check-label" for="chkCablebus">Línea 5 Cablebus</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="toggleIDSCheckbox" disabled>
-                <label class="form-check-label" for="toggleIDSCheckbox">IDS AO</label>
-              </div>
-            </div>
-            <hr />
             <div class="d-grid gap-2">
               <small>Selecciona un turno para ver las rutas que se monitorean, haz clic en una ruta para ver sus estadisticas.</small>
               <button id="btnLimpiar" class="btn btn-sm btn-outline-secondary">Limpiar selección</button>
@@ -226,92 +214,9 @@
       const coloresTurno = { matutino: "#FFD700", tarde: "#FF9800", vespertino: "#3F51B5" };
       const capasRutas = { matutino: null, tarde: null, vespertino: null };
       const capasNodos = { matutino: null, tarde: null, vespertino: null };
-      let capaCablebus = null;
-      let capaEstacionesCablebus = null;
-      let capaIDS = null;
-      const chkIDS = document.getElementById("toggleIDSCheckbox");
       let rutasGeoJSON = { matutino: null, tarde: null, vespertino: null };
       let nodosGeoJSON = { matutino: null, tarde: null, vespertino: null };
       const nombresNodos = { matutino: "NODOS MATUTINO", tarde: "NODOS TARDE", vespertino: "NODOS VESPERTINO" }; 
-
-      // Cargar Cablebus L5
-      fetch("data/Trazo_Cablebus L5_AO.geojson")
-        .then(r => r.json())
-        .then(gj => {
-          capaCablebus = L.geoJSON(gj, {
-            style: { color: "#00FFFF", weight: 4, fill: false }
-          });
-        })
-        .catch(e => console.warn("No se pudo cargar Cablebus L5:", e));
-
-      // Cargar estaciones del Cablebus
-      fetch("data/ESTACIONES_CABLEBUS_AO.geojson")
-        .then(r => r.json())
-        .then(gj => {
-          const iconoCablebus = L.icon({
-            iconUrl: "img/logo/Cablebus.jpg",
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-            popupAnchor: [0, -10]
-          });
-          capaEstacionesCablebus = L.geoJSON(gj, {
-            pointToLayer: (feature, latlng) => {
-              return L.marker(latlng, { icon: iconoCablebus });
-            },
-            onEachFeature: (feat, layer) => {
-              const nombre = feat.properties?.Name ?? "Estación";
-              layer.bindTooltip(nombre, { permanent: true, direction: 'right', className: 'leaflet-tooltip' });
-            }
-          });
-        })
-        .catch(e => console.warn("No se pudo cargar estaciones del Cablebus:", e));
-
-      // Cargar IDS AO y colorear según e_idsm
-      if (chkIDS) {
-          chkIDS.disabled = true;
-      }
-      fetch("data/IDS AO.geojson")
-        .then(r => r.json())
-        .then(gj => {
-          const coloresIDS = {
-            "Muy alto": "#6B0000",
-            "Alto": "#A80000",
-            "Medio": "#D43A3A",
-            "Bajo": "#F07A7A",
-            "Muy bajo": "#FACACA",
-            "Sin información": "#9E9E9E"
-          };
-          capaIDS = L.geoJSON(gj, {
-            style: feature => {
-              let cat = (feature.properties?.e_idsm || "Sin información").toString().trim();
-              if (!cat) cat = "Sin información";
-              const color = coloresIDS[cat] || coloresIDS["Sin información"];
-              return {
-                color: color,
-                weight: cat === "Sin información" ? 1 : 2,
-                fillOpacity: cat === "Sin información" ? 0.35 : 0.6,
-                fillColor: color
-              };
-            },
-            onEachFeature: (feat, layer) => {
-              layer.bindPopup(`<strong>e_idsm:</strong> ${feat.properties?.e_idsm || ''}`);
-              layer.on("mouseover", () => layer.setStyle({ fillOpacity: 1, weight: 3 }));
-              layer.on("mouseout", () => layer.setStyle({ fillOpacity: 0.6, weight: 2 }));
-            }
-          });
-          if (chkIDS) {
-            chkIDS.disabled = false;
-            if (chkIDS.checked) capaIDS.addTo(map);
-            chkIDS.addEventListener("change", function(e) {
-              if (!capaIDS) return;
-              if (e.target.checked) capaIDS.addTo(map);
-              else if (map.hasLayer(capaIDS)) map.removeLayer(capaIDS);
-            });
-          } else {
-            capaIDS.addTo(map);
-          }
-        })
-        .catch(e => console.warn("No se pudo cargar IDS AO:", e));
 
       ["matutino", "tarde", "vespertino"].forEach(turno => {
         fetch(`data/rutas_${turno}.geojson`)
@@ -374,37 +279,18 @@
         }
       }
 
-      function toggleCablebus(on) {
-        if (!capaCablebus && !capaEstacionesCablebus) return;
-        if (on) {
-          if (capaCablebus) capaCablebus.addTo(map);
-          if (capaEstacionesCablebus) capaEstacionesCablebus.addTo(map);
-        } else {
-          if (capaCablebus && map.hasLayer(capaCablebus)) map.removeLayer(capaCablebus);
-          if (capaEstacionesCablebus && map.hasLayer(capaEstacionesCablebus)) map.removeLayer(capaEstacionesCablebus);
-        }
-      }
-
       document.getElementById("chkMatutino").addEventListener("change", e => toggleTurno("matutino", e.target.checked));
       document.getElementById("chkTarde").addEventListener("change", e => toggleTurno("tarde", e.target.checked));
       document.getElementById("chkVespertino").addEventListener("change", e => toggleTurno("vespertino", e.target.checked));
       
-      const chkCablebus = document.getElementById("chkCablebus");
-      if (chkCablebus) chkCablebus.addEventListener("change", e => toggleCablebus(e.target.checked));
-      
       document.getElementById("btnLimpiar").addEventListener("click", () => {
         ["chkMatutino","chkTarde","chkVespertino"].forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
-        if (chkCablebus) chkCablebus.checked = false;
         ["matutino","tarde","vespertino"].forEach(t => {
           const capa = capasRutas[t];
           const capaNodos = capasNodos[t];
           if (capa && map.hasLayer(capa)) map.removeLayer(capa);
           if (capaNodos && map.hasLayer(capaNodos)) map.removeLayer(capaNodos);
         });
-        if (capaCablebus && map.hasLayer(capaCablebus)) map.removeLayer(capaCablebus);
-        if (capaEstacionesCablebus && map.hasLayer(capaEstacionesCablebus)) map.removeLayer(capaEstacionesCablebus);
-        if (capaIDS && map.hasLayer(capaIDS)) map.removeLayer(capaIDS);
-        if (chkIDS) chkIDS.checked = false;
       });
 
       let chartRef = null;
