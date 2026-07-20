@@ -108,14 +108,11 @@
      width: 300px;
      height: 100%;
      z-index: 10;
-     transition: transform 0.3s ease;
-     transform: translateX(0);
      pointer-events: auto;
    }
    
    .sidebar-container.oculto {
-     transform: translateX(-100%);
-     pointer-events: none;
+     pointer-events: auto;
    }
    
    .informacion {
@@ -147,7 +144,7 @@
    .toggle-btn {
      position: absolute;
      top: 0;
-     left: 300px; /* Al borde derecho del panel */
+     left: 0;
      width: 40px;
      height: 40px;
      background-color: rgb(108, 1, 1);
@@ -162,9 +159,8 @@
      pointer-events: auto;
    }
    
-   .sidebar-container.oculto .toggle-btn {
-     left: 0;
-     border-radius: 0 4px 4px 0;
+   .sidebar-container:not(.oculto) .toggle-btn {
+     left: 300px;
    }
    
    .hamburger {
