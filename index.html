@@ -241,19 +241,12 @@ para ver sus detalles.</h6>
       // also expose globally so external modules can access it if needed (e.g. Capa_pol.js)
       window.map = map;
       
-      // Asegurar que touch-action sea 'none' para evitar zoom de página en mobile
+      // Permitir gestos táctiles del mapa en celular sin bloquear el zoom de la página
       const mapContainer = map.getContainer();
-      mapContainer.style.touchAction = 'none';
+      mapContainer.style.touchAction = 'manipulation';
       mapContainer.style.userSelect = 'none';
       mapContainer.style.webkitUserSelect = 'none';
       mapContainer.style.webkitTouchCallout = 'none';
-      
-      // Interceptar eventos de zoom para prevenir zoom de página
-      mapContainer.addEventListener('touchstart', function(e) {
-        if (e.touches.length > 1) {
-          e.preventDefault();
-        }
-      }, { passive: false });
       
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -276,7 +269,27 @@ para ver sus detalles.</h6>
       const capasNodos = { matutino: null, tarde: null, vespertino: null };
       let rutasGeoJSON = { matutino: null, tarde: null, vespertino: null };
       let nodosGeoJSON = { matutino: null, tarde: null, vespertino: null };
-      const nombresNodos = { matutino: "NODOS MATUTINO", tarde: "NODOS TARDE", vespertino: "NODOS VESPERTINO" }; 
+      const nombresNodos = { matutino: "NODOS MATUTINO", tarde: "NODOS TARDE", vespertino: "NODOS VESPERTINO" };
+      const checkboxesTurno = { matutino: "chkMatutino", tarde: "chkTarde", vespertino: "chkVespertino" };
+
+      function syncTurnoLayers(turno) {
+        const capa = capasRutas[turno];
+        const capaNodos = capasNodos[turno];
+        const checkbox = document.getElementById(checkboxesTurno[turno]);
+        const checked = !!(checkbox && checkbox.checked);
+
+        if (!capa) return;
+
+        if (checked) {
+          if (!map.hasLayer(capa)) capa.addTo(map);
+          if (capaNodos && !map.hasLayer(capaNodos)) capaNodos.addTo(map);
+        } else {
+          if (map.hasLayer(capa)) map.removeLayer(capa);
+          if (capaNodos && map.hasLayer(capaNodos)) map.removeLayer(capaNodos);
+        }
+
+        requestAnimationFrame(() => map.invalidateSize({ pan: false }));
+      }
 
       ["matutino", "tarde", "vespertino"].forEach(turno => {
         fetch(`data/rutas_${turno}.geojson`)
@@ -296,6 +309,7 @@ para ver sus detalles.</h6>
                 });
               }
             });
+            syncTurnoLayers(turno);
           });
         
         // Cargar nodos para cada turno
@@ -307,16 +321,23 @@ para ver sus detalles.</h6>
               interactive: true,
               style: { color: "#FF0000", weight: 6, fill: false },
               onEachFeature: (feat, layer) => {
-                const motivoPri = feat.properties?.Motivo_Pri ?? "s/d";
+                const motivoPri = feat.properties?.Motivo_Pri ?? feat.properties?.Motivo ?? "s/d";
                 const turnoNodo = feat.properties?.Turno ?? "s/d";
                 const amplitud = feat.properties?.Amplitud ?? "s/d";
-                const popup = `<strong>Motivo Principal:</strong> ${motivoPri}<br><strong>Turno:</strong> ${turnoNodo}<br><strong>Amplitud:</strong> ${amplitud}`;
-                layer.bindPopup(popup);
-                layer.on("click tap", () => {
-                  map.openPopup(popup);
-                });
+                const rutaNodo = feat.properties?.Ruta ?? "s/d";
+                const sentido = feat.properties?.Sentido ?? "s/d";
+                const mes = feat.properties?.Mes ?? "s/d";
+                const popup = `<strong>Conflicto vial</strong><br><strong>Motivo principal:</strong> ${motivoPri}<br><strong>Ruta:</strong> ${rutaNodo}<br><strong>Turno:</strong> ${turnoNodo}<br><strong>Sentido:</strong> ${sentido}<br><strong>Mes:</strong> ${mes}<br><strong>Amplitud:</strong> ${amplitud}`;
+                layer.bindPopup(popup, { maxWidth: 260 });
+                const abrirPopupNodo = (e) => {
+                  if (e?.originalEvent) e.originalEvent.stopPropagation?.();
+                  layer.openPopup();
+                };
+                layer.on("click", abrirPopupNodo);
+                layer.on("tap", abrirPopupNodo);
               }
             });
+            syncTurnoLayers(turno);
           })
           .catch(e => console.warn(`No se pudo cargar nodos para ${turno}:`, e));
       });
@@ -326,12 +347,13 @@ para ver sus detalles.</h6>
         const capaNodos = capasNodos[turno];
         if (!capa) return;
         if (on) {
-          capa.addTo(map);
-          if (capaNodos) capaNodos.addTo(map);
+          if (!map.hasLayer(capa)) capa.addTo(map);
+          if (capaNodos && !map.hasLayer(capaNodos)) capaNodos.addTo(map);
         } else {
           if (map.hasLayer(capa)) map.removeLayer(capa);
           if (capaNodos && map.hasLayer(capaNodos)) map.removeLayer(capaNodos);
         }
+        requestAnimationFrame(() => map.invalidateSize({ pan: false }));
       }
 
       function toggleNodos(turno, on) {
