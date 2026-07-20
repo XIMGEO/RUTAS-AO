@@ -214,8 +214,12 @@
    }
 
    .map-container, #map, .leaflet-container {
-     touch-action: manipulation;
+     touch-action: none;
      -webkit-tap-highlight-color: transparent;
+   }
+   .leaflet-container .leaflet-control-zoom,
+   .leaflet-container .leaflet-control-attribution {
+     touch-action: manipulation;
    }
    
    /* ======================================

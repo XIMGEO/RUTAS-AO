@@ -229,10 +229,16 @@ para ver sus detalles.</h6>
         tap: true,
         tapTolerance: 15,
         zoomControl: true,
-        attributionControl: true
+        attributionControl: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        boxZoom: true,
+        touchZoom: true,
+        keyboard: true
       }).setView([19.359, -99.213], 12);
       // also expose globally so external modules can access it if needed (e.g. Capa_pol.js)
       window.map = map;
+      map.getContainer().style.touchAction = 'none';
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {
