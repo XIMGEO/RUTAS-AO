@@ -214,8 +214,11 @@
    }
 
    .map-container, #map, .leaflet-container {
-     touch-action: none;
+     touch-action: none !important;
      -webkit-tap-highlight-color: transparent;
+     user-select: none;
+     -webkit-user-select: none;
+     -webkit-touch-callout: none;
    }
    .leaflet-container .leaflet-control-zoom,
    .leaflet-container .leaflet-control-attribution {

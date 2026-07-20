@@ -3,7 +3,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
     <title>Geoportal AO</title>
 
     <!-- Favicon y fuentes -->
@@ -234,11 +234,27 @@ para ver sus detalles.</h6>
         doubleClickZoom: true,
         boxZoom: true,
         touchZoom: true,
-        keyboard: true
+        touchZoomRotate: true,
+        keyboard: true,
+        bounceAtZoomLimits: false
       }).setView([19.359, -99.213], 12);
       // also expose globally so external modules can access it if needed (e.g. Capa_pol.js)
       window.map = map;
-      map.getContainer().style.touchAction = 'none';
+      
+      // Asegurar que touch-action sea 'none' para evitar zoom de página en mobile
+      const mapContainer = map.getContainer();
+      mapContainer.style.touchAction = 'none';
+      mapContainer.style.userSelect = 'none';
+      mapContainer.style.webkitUserSelect = 'none';
+      mapContainer.style.webkitTouchCallout = 'none';
+      
+      // Interceptar eventos de zoom para prevenir zoom de página
+      mapContainer.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+      
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {

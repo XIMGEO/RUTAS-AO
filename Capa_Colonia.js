@@ -81,13 +81,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
         coloniaSeleccionada = layer; // Guarda la nueva selección
 
-        // Ajusta la vista del mapa a la colonia seleccionada
+        // Ajusta la vista del mapa a la colonia seleccionada con zoom consistente
         let bounds = layer.getBounds();
-        if (window.innerWidth > 768) {
-            map.fitBounds(bounds, { paddingTopLeft: [300, 0], paddingBottomRight: [0, 0] });
-        } else {
-            map.setView(bounds.getCenter(), 15);
-        }
+        let center = bounds.getCenter();
+        
+        // Calcula un zoom apropiado basado en el tamaño de la colonia
+        // Usa un zoom fijo para garantizar consistencia
+        let zoomLevel = 16;
+        
+        // Primero centra el mapa en la colonia con el zoom calculado
+        map.setView(center, zoomLevel, { animate: true, duration: 0.5 });
 
         // Aplica sombreado a las demás colonias solo después de realizar el zoom
         setTimeout(() => {
@@ -96,7 +99,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     capa.setStyle({ fillOpacity: 0.5, color: "gray", weight: 3 }); // Opacidad gris al 50%
                 }
             });
-        }, 300); // Se activa justo después del zoom
+        }, 500); // Se activa justo después del zoom
 
         layer.openPopup(); // Abre el popup de la colonia seleccionada
     }
