@@ -27,26 +27,25 @@ document.addEventListener("DOMContentLoaded", function () {
         attribution: '&copy; OpenStreetMap contributors',
         minZoom: 10,
         maxZoom: 23
-    }).addTo(map);
-
-    var street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        minZoom: 10,
-        maxZoom: 19
     });
+
+    var etiquetas = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
+        minZoom: 10,
+        maxZoom: 20
+    }).addTo(map);
 
     var baseMaps = {
         "Mapa Satelital": satelital,
-        "Mapa Street": street
+        "Mapa con etiquetas": etiquetas
     };
 
-    configInicial.baseLayer = satelital;
+    configInicial.baseLayer = etiquetas;
 
     L.control.layers(baseMaps).addTo(map);
 
     // Agregar control de zoom en la esquina superior derecha
-    L.control.zoom({ position: 'topright' }).addTo(map);
-
     console.log("Mapa inicializado correctamente.");
 
     // 🔹 **Agregar botón "Actualizar" con ícono de casita en gris**
