@@ -408,6 +408,7 @@ para ver sus detalles.</h6>
 
       const coloresTurno = { matutino: "#FFD700", tarde: "#FF9800", vespertino: "#3F51B5" };
       const capasRutas = { matutino: null, tarde: null, vespertino: null };
+      const capasRutasOutline = { matutino: null, tarde: null, vespertino: null };
       const capasNodos = { matutino: null, tarde: null, vespertino: null };
       let rutasGeoJSON = { matutino: null, tarde: null, vespertino: null };
       let nodosGeoJSON = { matutino: null, tarde: null, vespertino: null };
@@ -437,8 +438,17 @@ para ver sus detalles.</h6>
         return false;
       }
 
+      function routeStyle(turno) {
+        return { color: coloresTurno[turno], weight: 5, opacity: 1 };
+      }
+
+      function routeOutlineStyle() {
+        return { color: '#000000', weight: 7, opacity: 1 };
+      }
+
       function syncTurnoLayers(turno) {
         const capa = capasRutas[turno];
+        const outline = capasRutasOutline[turno];
         const capaNodos = capasNodos[turno];
         const checkbox = document.getElementById(checkboxesTurno[turno]);
         const checked = !!(checkbox && checkbox.checked);
@@ -446,10 +456,12 @@ para ver sus detalles.</h6>
         if (!capa) return;
 
         if (checked) {
+          if (outline && !map.hasLayer(outline)) outline.addTo(map);
           if (!map.hasLayer(capa)) capa.addTo(map);
           if (capaNodos && !map.hasLayer(capaNodos)) capaNodos.addTo(map);
         } else {
           if (map.hasLayer(capa)) map.removeLayer(capa);
+          if (outline && map.hasLayer(outline)) map.removeLayer(outline);
           if (capaNodos && map.hasLayer(capaNodos)) map.removeLayer(capaNodos);
         }
 
@@ -461,10 +473,15 @@ para ver sus detalles.</h6>
           .then(r => r.json())
           .then(gj => {
             rutasGeoJSON[turno] = gj;
+            capasRutasOutline[turno] = L.geoJSON(gj, {
+              interactive: false,
+              filter: feature => !routeExcludedInTurno(feature.properties?.IDENTIFICA, turno),
+              style: routeOutlineStyle()
+            });
             capasRutas[turno] = L.geoJSON(gj, {
               interactive: true,
               filter: feature => !routeExcludedInTurno(feature.properties?.IDENTIFICA, turno),
-              style: { color: coloresTurno[turno], weight: 5 },
+              style: routeStyle(turno),
               onEachFeature: (feat, layer) => {
                 const rutaId = feat.properties?.IDENTIFICA ?? "s/d";
                 const od = feat.properties?.["O/D"] ?? "";
@@ -510,13 +527,16 @@ para ver sus detalles.</h6>
 
       function toggleTurno(turno, on) {
         const capa = capasRutas[turno];
+        const outline = capasRutasOutline[turno];
         const capaNodos = capasNodos[turno];
         if (!capa) return;
         if (on) {
+          if (outline && !map.hasLayer(outline)) outline.addTo(map);
           if (!map.hasLayer(capa)) capa.addTo(map);
           if (capaNodos && !map.hasLayer(capaNodos)) capaNodos.addTo(map);
         } else {
           if (map.hasLayer(capa)) map.removeLayer(capa);
+          if (outline && map.hasLayer(outline)) map.removeLayer(outline);
           if (capaNodos && map.hasLayer(capaNodos)) map.removeLayer(capaNodos);
         }
         requestAnimationFrame(() => map.invalidateSize({ pan: false }));
