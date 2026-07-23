@@ -414,6 +414,29 @@ para ver sus detalles.</h6>
       const nombresNodos = { matutino: "NODOS MATUTINO", tarde: "NODOS TARDE", vespertino: "NODOS VESPERTINO" };
       const checkboxesTurno = { matutino: "chkMatutino", tarde: "chkTarde", vespertino: "chkVespertino" };
 
+      function routeExcludedInTurno(routeId, turno) {
+        const normalizedRoute = String(routeId || '').trim().toUpperCase();
+        const normalizedTurno = String(turno || '').trim().toLowerCase();
+
+        if (normalizedTurno === 'matutino' || normalizedTurno === 'tarde') {
+          return [
+            '4 A IDA',
+            '4 A REGRESO',
+            '12 REGRESO'
+          ].includes(normalizedRoute);
+        }
+
+        if (normalizedTurno === 'vespertino') {
+          return [
+            '4 A IDA',
+            '4 A REGRESO',
+            '12 IDA'
+          ].includes(normalizedRoute);
+        }
+
+        return false;
+      }
+
       function syncTurnoLayers(turno) {
         const capa = capasRutas[turno];
         const capaNodos = capasNodos[turno];
@@ -440,6 +463,7 @@ para ver sus detalles.</h6>
             rutasGeoJSON[turno] = gj;
             capasRutas[turno] = L.geoJSON(gj, {
               interactive: true,
+              filter: feature => !routeExcludedInTurno(feature.properties?.IDENTIFICA, turno),
               style: { color: coloresTurno[turno], weight: 5 },
               onEachFeature: (feat, layer) => {
                 const rutaId = feat.properties?.IDENTIFICA ?? "s/d";
@@ -608,6 +632,11 @@ para ver sus detalles.</h6>
           console.log("Turnos únicos en datos:", turnosUnicos);
           console.log("Buscando RUTAS_ID:", String(rutaId).trim().toLowerCase());
           console.log("Buscando Turno:", String(turno).trim().toLowerCase());
+
+          if (routeExcludedInTurno(rutaId, turno)) {
+            alert("No hay datos disponibles para esta ruta y turno.");
+            return;
+          }
 
           const filtrado = data.filter(d =>
             String(d["RUTAS ID"]).trim().toLowerCase() === String(rutaId).trim().toLowerCase() &&
